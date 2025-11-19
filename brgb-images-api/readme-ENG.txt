@@ -1,6 +1,6 @@
 Image processing library for BMP format and display in ComputerCraft/Tweaked.
 
-ATTENTION: WORKS ONLY IN THE CraftOS-pc ENVIRONMENT!!!
+ATTENTION: WORKS ONLY IN THE "CraftOS-pc" ENVIRONMENT!!!
 
 files:
 	brgb_processing_api - original code
@@ -26,5 +26,6 @@ Features:
     Automatic nearest color matching from CC palette
     Efficient data storage (1 byte per pixel)
     File reading error handling
+
 
 (The code may contain unknown errors, please let me know if you find any)
