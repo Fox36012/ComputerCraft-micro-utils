@@ -4,8 +4,8 @@
 
 Файлы:
 	brgb_processing_api — исходный код
-	brgb_processing(console) — консольная версия (Использование: brgb_process <bmp_file> <brgb_file> <useDithering>)
 	brgb_processing_api(optim) — оптимизированная версия
+	brgb_processing(console) — консольная версия (Использование: brgb_process <bmp_file> <brgb_file> <useDithering>)
 	brgb_viewer — может только отображать изображение (Использование: brgb_viewer <path_to_brgb_file>)
 
 Основные возможности:
@@ -29,3 +29,4 @@
 
 
 (в коде могу содержатся неизвестные ошибки, дайте знать если вы их обнаружите)
+
