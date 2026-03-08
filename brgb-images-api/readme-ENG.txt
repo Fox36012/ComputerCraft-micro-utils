@@ -19,5 +19,3 @@ Key features:
 	fully described in the help in the console application
 
 (the code may contain unknown errors, let me know if you find them)
-I will quickly transfer the code for converting mp4 and other video files
-
