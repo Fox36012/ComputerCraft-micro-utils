@@ -1,275 +1,233 @@
--- Палитра цветов ComputerCraft в HEX для квантования
-local palette = {
-    {0xF0, 0xF0, 0xF0},{0xF2, 0xB2, 0x33},{0xE5, 0x7F, 0xD8},{0x99, 0xB2, 0xF2},
-    {0xDE, 0xDE, 0x6C},{0x7F, 0xCC, 0x19},{0xF2, 0xB2, 0xCC},{0x4C, 0x4C, 0x4C},
-    {0x99, 0x99, 0x99},{0x4C, 0x99, 0xB2},{0xB2, 0x66, 0xE5},{0x33, 0x66, 0xCC},
-    {0x7F, 0x66, 0x4C},{0x57, 0xA6, 0x4E},{0xCC, 0x4C, 0x4C},{0x11, 0x11, 0x11}
-}
+-- brgb_convert.lua
+local api = require("brgb_processing_api")
 
--- Таблица для преобразования индексов в константы colors.*
-local colorConstants = {
-    colors.white, colors.orange, colors.magenta, colors.lightBlue,
-    colors.yellow, colors.lime, colors.pink, colors.gray,
-    colors.lightGray, colors.cyan, colors.purple, colors.blue,
-    colors.brown, colors.green, colors.red, colors.black
-}
--- Функция для вычисления расстояния между цветами
-local function colorDistance(r1, g1, b1, r2, g2, b2)
-    return math.sqrt((r1 - r2)^2 + (g1 - g2)^2 + (b1 - b2)^2)
-end
-
--- Функция квантования - нахождение ближайшего цвета в палитре
-local function quantizeColor(r, g, b)
-    local bestIndex = 1
-    local bestDistance = colorDistance(r, g, b, palette[1][1], palette[1][2], palette[1][3])
-    
-    for i = 2, #palette do
-        local dist = colorDistance(r, g, b, palette[i][1], palette[i][2], palette[i][3])
-        if dist < bestDistance then
-            bestDistance = dist
-            bestIndex = i
-        end
-    end
-    
-    return bestIndex - 1 -- возвращаем индекс от 0 до 15
-end
-
--- Функция дизеринга по Флойду-Стейнбергу
-local function floydSteinbergDither(bmpData, width, height)
-    local result = {}
-    
-    -- Создаем копию данных для обработки
-    for y = 1, height do
-        result[y] = {}
-        for x = 1, width do
-            result[y][x] = {bmpData[y][x][1], bmpData[y][x][2], bmpData[y][x][3]}
-        end
-    end
-    
-    -- Применяем дизеринг
-    for y = 1, height do
-        for x = 1, width do
-            local oldR, oldG, oldB = result[y][x][1], result[y][x][2], result[y][x][3]
-            
-            -- Находим ближайший цвет
-            local newColorIndex = quantizeColor(oldR, oldG, oldB)
-            local newR, newG, newB = palette[newColorIndex + 1][1], palette[newColorIndex + 1][2], palette[newColorIndex + 1][3]
-            
-            -- Записываем результат (только индекс цвета)
-            result[y][x] = newColorIndex
-            
-            -- Вычисляем ошибку
-            local errR = oldR - newR
-            local errG = oldG - newG
-            local errB = oldB - newB
-            
-            -- Распространяем ошибку на соседние пиксели
-            if x < width then
-                -- Пиксель справа
-                if type(result[y][x+1]) == "table" then
-                    local rightR, rightG, rightB = result[y][x+1][1], result[y][x+1][2], result[y][x+1][3]
-                    result[y][x+1] = {
-                        math.max(0, math.min(255, rightR + errR * 7/16)),
-                        math.max(0, math.min(255, rightG + errG * 7/16)),
-                        math.max(0, math.min(255, rightB + errB * 7/16))
-                    }
-                end
-            end
-            
-            if y < height then
-                if x > 1 then
-                    -- Пиксель слева снизу
-                    if type(result[y+1][x-1]) == "table" then
-                        local leftDownR, leftDownG, leftDownB = result[y+1][x-1][1], result[y+1][x-1][2], result[y+1][x-1][3]
-                        result[y+1][x-1] = {
-                            math.max(0, math.min(255, leftDownR + errR * 3/16)),
-                            math.max(0, math.min(255, leftDownG + errG * 3/16)),
-                            math.max(0, math.min(255, leftDownB + errB * 3/16))
-                        }
-                    end
-                end
-                
-                -- Пиксель снизу
-                if type(result[y+1][x]) == "table" then
-                    local downR, downG, downB = result[y+1][x][1], result[y+1][x][2], result[y+1][x][3]
-                    result[y+1][x] = {
-                        math.max(0, math.min(255, downR + errR * 5/16)),
-                        math.max(0, math.min(255, downG + errG * 5/16)),
-                        math.max(0, math.min(255, downB + errB * 5/16))
-                    }
-                end
-                
-                if x < width then
-                    -- Пиксель справа снизу
-                    if type(result[y+1][x+1]) == "table" then
-                        local rightDownR, rightDownG, rightDownB = result[y+1][x+1][1], result[y+1][x+1][2], result[y+1][x+1][3]
-                        result[y+1][x+1] = {
-                            math.max(0, math.min(255, rightDownR + errR * 1/16)),
-                            math.max(0, math.min(255, rightDownG + errG * 1/16)),
-                            math.max(0, math.min(255, rightDownB + errB * 1/16))
-                        }
-                    end
-                end
-            end
-        end
-    end
-    
-    return result
-end
-
--- Функция для чтения BMP файла
-local function readBMP(filename)
-    local file = fs.open(filename, "rb")
-    if not file then
-        error("Cannot open file: " .. filename)
-    end
-    
-    -- Читаем заголовок
-    local signature = file.read(2)
-    if signature ~= "BM" then
-        file.close()
-        error("Not a BMP file")
-    end
-    
-    -- Пропускаем до информации о размере (смещение 18 от начала файла)
-    file.seek("set", 18)
-    
-    -- Читаем ширину и высоту как 4-байтные little-endian числа
-    local widthBytes = {string.byte(file.read(1)), string.byte(file.read(1)), string.byte(file.read(1)), string.byte(file.read(1))}
-    local heightBytes = {string.byte(file.read(1)), string.byte(file.read(1)), string.byte(file.read(1)), string.byte(file.read(1))}
-    
-    local width = widthBytes[1] + widthBytes[2] * 256 + widthBytes[3] * 65536 + widthBytes[4] * 16777216
-    local height = heightBytes[1] + heightBytes[2] * 256 + heightBytes[3] * 65536 + heightBytes[4] * 16777216
-    
-    -- Пропускаем до начала пиксельных данных (смещение 54 от начала для 24-bit BMP)
-    file.seek("set", 54)
-    
-    local bmpData = {}
-    local rowSize = math.ceil((width * 3) / 4) * 4  -- Выравнивание строк до кратного 4 байтам
-    local padding = rowSize - width * 3
-    
-    -- Читаем пиксельные данные (BMP хранится снизу вверх)
-    for y = height, 1, -1 do
-        bmpData[y] = {}
-        for x = 1, width do
-            local b = string.byte(file.read(1))
-            local g = string.byte(file.read(1))
-            local r = string.byte(file.read(1))
-            bmpData[y][x] = {r, g, b}
-        end
-        -- Пропускаем padding байты в конце строки
-        if padding > 0 then
-            file.seek("cur", padding)
-        end
-    end
-    
-    file.close()
-    return bmpData, width, height
-end
-
--- Функция для сохранения в формат .brgb
-local function saveBRGB(filename, pixelData, width, height)
-    local file = fs.open(filename, "wb")
-    
-    -- Заголовок: сигнатура + размеры
-    file.write("BRGB")
-    file.write(string.char(math.floor(width / 256), width % 256))
-    file.write(string.char(math.floor(height / 256), height % 256))
-    
-    -- Данные пикселей (только индексы цветов 0-15)
-    for y = 1, height do
-        for x = 1, width do
-            file.write(string.char(pixelData[y][x]))
-        end
-    end
-    
-    file.close()
-end
-
--- Основная функция обработки
-local function processBMP(inputFile, outputFile, useDithering)
-    print("Reading BMP file: " .. inputFile)
-    local bmpData, width, height = readBMP(inputFile)
-    
-    print("Image size: " .. width .. "x" .. height)
-    print("Processing image...")
-    
-    local processedData = {}
-    
-    if useDithering then
-        print("Using Floyd-Steinberg dithering")
-        processedData = floydSteinbergDither(bmpData, width, height)
-    else
-        print("Using simple color quantization")
-        for y = 1, height do
-            processedData[y] = {}
-            for x = 1, width do
-                local r, g, b = bmpData[y][x][1], bmpData[y][x][2], bmpData[y][x][3]
-                processedData[y][x] = quantizeColor(r, g, b)
-            end
-        end
-    end
-    
-    print("Saving BRGB file: " .. outputFile)
-    saveBRGB(outputFile, processedData, width, height)
-    print("Done! BRGB file saved successfully")
-    
-    return width, height
-end
-
--- Функция для отображения справки
-local function showHelp()
-    print("BRGB Image Processor for ComputerCraft")
-    print("Usage: brgb_process <bmp_file> <brgb_file> <useDithering>")
-    print("")
-    print("Arguments:")
-    print("  bmp_file      - Path to input BMP file")
-    print("  brgb_file     - Path for output BRGB file")
-    print("  useDithering  - 'true' for dithering, 'false' for simple quantization")
-    print("")
+local function printHelp()
+    print("BRGB Converter - Universal Image/Video Converter")
+    print("================================================")
+    print()
+    print("Convert single image:")
+    print("  brgb_convert image <input> <output.brgb> [options]")
+    print()
+    print("Convert video from multiple frames:")
+    print("  brgb_convert video <frame1> <frame2> ... <output.brgb> [options]")
+    print()
+    print("Preview image:")
+    print("  brgb_convert preview <input> [options]")
+    print()
+    print("Options:")
+    print("  --format <bmp|nfp|txt|brgb> : Input format (auto-detected)")
+    print("  --dither                    : Use Floyd-Steinberg dithering")
+    print("  --fps <number>              : FPS for video (default: 10)")
+    print("  --looped                    : Create looped video")
+    print("  --charmap <file.lua>        : Custom character mapping for TXT")
+    print("  --batch <pattern>           : Batch convert matching files")
+    print("  --output-dir <dir>          : Output directory for batch")
+    print()
     print("Examples:")
-    print("  brgb_process image.bmp image.brgb true")
-    print("  brgb_process photo.bmp result.brgb false")
+    print("  brgb_convert image photo.bmp image.brgb --dither")
+    print("  brgb_convert image drawing.nfp drawing.brgb")
+    print("  brgb_convert image text.txt text.brgb")
+    print("  brgb_convert video frame*.bmp animation.brgb --fps 15 --looped")
+    print("  brgb_convert preview test.bmp --dither")
+    print("  brgb_convert image *.bmp --batch")
+end
+
+-- Автоматическое определение формата по расширению
+local function detectFormat(filename)
+    if filename:match("%.bmp$") then return "bmp" end
+    if filename:match("%.nfp$") then return "nfp" end
+    if filename:match("%.txt$") then return "txt" end
+    if filename:match("%.brgb$") then return "brgb" end
+    return nil
+end
+
+-- Загрузка пользовательской карты символов
+local function loadCharMap(filename)
+    if not fs.exists(filename) then
+        error("Char map file not found: " .. filename)
+    end
+    
+    -- Запускаем файл в изолированной среде
+    local env = {colors = colors}
+    local func, err = loadfile(filename, nil, env)
+    if not func then
+        error("Failed to load char map: " .. err)
+    end
+    
+    local success, result = pcall(func)
+    if not success then
+        error("Error executing char map: " .. result)
+    end
+    
+    -- Возвращаем таблицу charToColor из загруженного файла
+    return env.charToColor or {}
+end
+
+-- Пакетная конвертация
+local function batchConvert(pattern, outputDir, format, useDithering, customCharMap)
+    local files = fs.list("")
+    local converted = 0
+    
+    for _, filename in ipairs(files) do
+        if filename:match(pattern) then
+            local fileFormat = format or detectFormat(filename)
+            if fileFormat then
+                local outputFile = outputDir .. "/" .. filename:gsub("%.[^%.]+$", "") .. ".brgb"
+                
+                print("Converting: " .. filename .. " -> " .. outputFile)
+                
+                local success, err = pcall(function()
+                    api.convertImage(filename, outputFile, fileFormat, useDithering, customCharMap)
+                end)
+                
+                if success then
+                    print("  ✓ Success")
+                    converted = converted + 1
+                else
+                    print("  ✗ Error: " .. err)
+                end
+            end
+        end
+    end
+    
+    print("\nBatch conversion complete!")
+    print("Converted: " .. converted .. " files")
 end
 
 -- Основная функция
 local function main(args)
-    if #args < 3 then
-        showHelp()
+    if #args == 0 then
+        printHelp()
         return
     end
     
-    local inputFile = args[1]
-    local outputFile = args[2]
-    local useDithering = args[3]
+    local mode = args[1]
+    local options = {
+        format = nil,
+        useDithering = false,
+        fps = 10,
+        isLooped = false,
+        customCharMap = nil,
+        batchPattern = nil
+    }
     
-    -- Проверяем существование входного файла
-    if not fs.exists(inputFile) then
-        print("Error: Input file '" .. inputFile .. "' not found")
-        return
+    local inputFiles = {}
+    local outputFile = nil
+    local outputDir = "converted"
+    
+    -- Парсинг аргументов
+    local i = 2
+    while i <= #args do
+        local arg = args[i]
+        
+        if arg == "--format" and i + 1 <= #args then
+            options.format = args[i + 1]
+            i = i + 2
+        elseif arg == "--dither" then
+            options.useDithering = true
+            i = i + 1
+        elseif arg == "--fps" and i + 1 <= #args then
+            options.fps = tonumber(args[i + 1])
+            i = i + 2
+        elseif arg == "--looped" then
+            options.isLooped = true
+            i = i + 1
+        elseif arg == "--charmap" and i + 1 <= #args then
+            options.customCharMap = loadCharMap(args[i + 1])
+            i = i + 2
+        elseif arg == "--batch" and i + 1 <= #args then
+            options.batchPattern = args[i + 1]
+            i = i + 2
+        elseif arg == "--output-dir" and i + 1 <= #args then
+            outputDir = args[i + 1]
+            i = i + 2
+        elseif not outputFile and (arg:match("%.brgb$") or i == #args) then
+            outputFile = arg
+            i = i + 1
+        else
+            table.insert(inputFiles, arg)
+            i = i + 1
+        end
     end
     
-    -- Преобразуем useDithering в boolean
-    if useDithering == "true" then
-        useDithering = true
-    elseif useDithering == "false" then
-        useDithering = false
+    if mode == "image" then
+        if options.batchPattern then
+            -- Пакетная конвертация
+            if not fs.exists(outputDir) then
+                fs.makeDir(outputDir)
+            end
+            batchConvert(options.batchPattern, outputDir, options.format, options.useDithering, options.customCharMap)
+        else
+            -- Одиночное изображение
+            if #inputFiles ~= 1 then
+                error("Single image mode requires exactly 1 input file")
+            end
+            
+            if not outputFile then
+                outputFile = inputFiles[1]:gsub("%.[^%.]+$", "") .. ".brgb"
+            end
+            
+            local format = options.format or detectFormat(inputFiles[1])
+            if not format then
+                error("Cannot detect format for: " .. inputFiles[1])
+            end
+            
+            print("Converting: " .. inputFiles[1] .. " -> " .. outputFile)
+            local width, height = api.convertImage(inputFiles[1], outputFile, format, 
+                                                   options.useDithering, options.customCharMap)
+            print(string.format("Success! Size: %dx%d", width, height))
+        end
+        
+    elseif mode == "video" then
+        if #inputFiles < 2 then
+            error("Video mode requires at least 2 input files")
+        end
+        
+        if not outputFile then
+            outputFile = "animation.brgb"
+        end
+        
+        -- Определяем форматы для каждого кадра
+        local formats = {}
+        for _, file in ipairs(inputFiles) do
+            table.insert(formats, options.format or detectFormat(file))
+        end
+        
+        -- Конвертируем видео
+        local success, err = pcall(function()
+            api.convertVideo(inputFiles, outputFile, formats, options.useDithering, 
+                           options.isLooped, options.fps, options.customCharMap)
+        end)
+        
+        if not success then
+            error("Video conversion failed: " .. err)
+        end
+        
+    elseif mode == "preview" then
+        if #inputFiles ~= 1 then
+            error("Preview mode requires exactly 1 input file")
+        end
+        
+        local format = options.format or detectFormat(inputFiles[1])
+        if not format then
+            error("Cannot detect format for: " .. inputFiles[1])
+        end
+        
+        print("Previewing: " .. inputFiles[1])
+        local width, height = api.previewImage(inputFiles[1], format, 
+                                              options.useDithering, options.customCharMap)
+        print(string.format("Preview complete. Size: %dx%d", width, height))
+        
     else
-        print("Error: useDithering must be 'true' or 'false'")
-        showHelp()
-        return
-    end
-    local success, width, height = pcall(processBMP, inputFile, outputFile, useDithering)
-    if success then
-        print("Successfully converted " .. width .. "x" .. height .. " image")
-    else
-        print("Error during processing: " .. tostring(width)) -- width содержит сообщение об ошибке в этом случае
+        error("Unknown mode: " .. mode .. ". Use 'image', 'anim', or 'text'")
     end
 end
 
--- Запускаем программу если файл выполняется напрямую
-if not shell then
-    print("This program must be run from ComputerCraft shell")
-else
-    main({...})
+-- Запуск
+local args = {...}
+local success, err = pcall(function() main(args) end)
+if not success then
+    print("Error: " .. err)
+    print()
+    printHelp()
 end
