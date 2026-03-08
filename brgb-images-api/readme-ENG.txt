@@ -1,32 +1,22 @@
-Image processing library for BMP format and display in ComputerCraft/Tweaked.
+A library for processing images in BMP format and displaying them in ComputerCraft/Tweaked.
 
-ATTENTION: WORKS ONLY IN THE "CraftOS-pc" ENVIRONMENT!!!
+LISTENING: IT ONLY WORKS IN THE "CraftOS-pc" ENVIRONMENT!!!
 
-files:
-	brgb_processing_api - original code
-	brgb_processing_api(optim) - optimized version
-	brgb_processing(console) - console version (Usage: brgb_process <bmp_file> <brgb_file> <useDithering>)
-	brgb_viewer - can only show the image (Usage: brgb_viewer <path_to_brgb_file>)
+Files:
+	brgb_processing_api — API source code
+	brgb_processing(console) — a console application for the API 
+	brgb_viewer — can display image and video
+	video_convertor is a script for converting videos to brgb (python)
 
-Main Features:
-    BMP file reading - loading 24-bit BMP images
-    Color conversion - converting RGB to ComputerCraft palette (16 colors)
-    Floyd-Steinberg dithering - improved color conversion quality
-    Custom LCBI format - compact image storage
-    Image display - output to screen via graphics mode
+Main features:
+Reading BMP files — downloading 24-bit BMP images
+File processing: BRGB, TXT, NFP, BMP for gluing into videos
+    Color Conversion — RGB conversion to ComputerCraft palette (16 colors)
+    Floyd-Steinberg dithering — improved color conversion quality
+rewritten BRGB format — now supports video streaming
 
-Key Functions:
-    processBMP() - converts BMP to LCBI with dithering
-    displayLCBI() - displays LCBI file on screen
-    previewImage() - image preview in graphics mode
-    loadLCBI()/saveLCBI() - work with custom format
+Key features:
+fully described in the help in the console application
 
-Features:
-    Dithering algorithm support for smooth color transitions
-    Automatic nearest color matching from CC palette
-    Efficient data storage (1 byte per pixel)
-    File reading error handling
-
-
-(The code may contain unknown errors, please let me know if you find any)
-
+(the code may contain unknown errors, let me know if you find them)
+I will quickly transfer the code for converting mp4 and other video files
