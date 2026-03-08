@@ -2,6 +2,7 @@
 """
 BRGB Video Converter - Конвертер видео файлов в формат BRGB для ComputerCraft
 Адаптировано для Windows
+поддерживаемые форматы .mp4, .avi, .mov, .mkv, .webm, .flv, .wmv, .m4v, .mpg, .mpeg
 """
 
 import os
